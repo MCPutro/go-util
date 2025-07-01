@@ -14,10 +14,10 @@ import (
 )
 
 type RestClient interface {
-	GetRequest(ctx context.Context, url string, headers map[string]string, responseBody any) error
-	PostRequest(ctx context.Context, url string, headers map[string]string, requestBody any, responseBody any) error
-	PutRequest(ctx context.Context, url string, headers map[string]string, requestBody any, responseBody any) error
-	DeleteRequest(ctx context.Context, url string, headers map[string]string, responseBody any) error
+	GetRequest(ctx context.Context, uri string, headers map[string]string, queryParams map[string]string, responseBody any) error
+	PostRequest(ctx context.Context, uri string, headers map[string]string, requestBody any, responseBody any) error
+	PutRequest(ctx context.Context, uri string, headers map[string]string, requestBody any, queryParams map[string]string, responseBody any) error
+	DeleteRequest(ctx context.Context, uri string, headers map[string]string, queryParams map[string]string, responseBody any) error
 	GenericRequest(ctx context.Context, method string, endpoint string, requestBody any, headers map[string]string,
 		queryParams map[string]string, responseBody any) error
 }
@@ -34,9 +34,11 @@ func NewRestClient(baseUrl string, timeout time.Duration) RestClient {
 	}
 }
 
-func (c *restClientImpl) GetRequest(ctx context.Context, url string, headers map[string]string, responseBody any) error {
+func (c *restClientImpl) GetRequest(ctx context.Context, uri string, headers map[string]string, queryParams map[string]string, responseBody any) error {
+	//query param
+	endpoint := addQueryParams(c.BaseUrl+uri, queryParams)
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseUrl+url, nil)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint, nil)
 	if err != nil {
 		return err
 	}
@@ -71,14 +73,14 @@ func (c *restClientImpl) GetRequest(ctx context.Context, url string, headers map
 	return nil
 }
 
-func (c *restClientImpl) PostRequest(ctx context.Context, url string, headers map[string]string, requestBody any, responseBody any) error {
+func (c *restClientImpl) PostRequest(ctx context.Context, uri string, headers map[string]string, requestBody any, responseBody any) error {
 
 	jsonBodyByte, err := json.Marshal(requestBody)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseUrl+url, bytes.NewBuffer(jsonBodyByte))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.BaseUrl+uri, bytes.NewBuffer(jsonBodyByte))
 	if err != nil {
 		return err
 	}
@@ -114,13 +116,16 @@ func (c *restClientImpl) PostRequest(ctx context.Context, url string, headers ma
 	return nil
 }
 
-func (c *restClientImpl) PutRequest(ctx context.Context, url string, headers map[string]string, requestBody any, responseBody any) error {
+func (c *restClientImpl) PutRequest(ctx context.Context, uri string, headers map[string]string, requestBody any, queryParams map[string]string, responseBody any) error {
+	//query param
+	endpoint := addQueryParams(c.BaseUrl+uri, queryParams)
+
 	jsonBodyByte, err := json.Marshal(requestBody)
 	if err != nil {
 		return err
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPut, c.BaseUrl+url, bytes.NewBuffer(jsonBodyByte))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPut, endpoint, bytes.NewBuffer(jsonBodyByte))
 	if err != nil {
 		return err
 	}
@@ -152,8 +157,11 @@ func (c *restClientImpl) PutRequest(ctx context.Context, url string, headers map
 	return nil
 }
 
-func (c *restClientImpl) DeleteRequest(ctx context.Context, url string, headers map[string]string, responseBody any) error {
-	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, c.BaseUrl+url, nil)
+func (c *restClientImpl) DeleteRequest(ctx context.Context, uri string, headers map[string]string, queryParams map[string]string, responseBody any) error {
+	//query param
+	endpoint := addQueryParams(c.BaseUrl+uri, queryParams)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, endpoint, nil)
 	if err != nil {
 		return err
 	}
@@ -195,7 +203,7 @@ func (c *restClientImpl) GenericRequest(ctx context.Context, method string, endp
 	}
 
 	// Tambahkan query parameter ke URL
-	urlWithParams := addQueryParams(c.BaseUrl+endpoint, queryParams)
+	urlWithParams := addQueryParams(endpoint, queryParams)
 
 	// Buat request body jika ada
 	var reqBody io.Reader
@@ -252,6 +260,10 @@ func (c *restClientImpl) GenericRequest(ctx context.Context, method string, endp
 }
 
 func addQueryParams(baseURL string, params map[string]string) string {
+	if params == nil || len(params) == 0 {
+		return baseURL
+	}
+
 	u, _ := url.Parse(baseURL)
 	q := u.Query()
 	for k, v := range params {
