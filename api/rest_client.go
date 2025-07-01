@@ -6,7 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go-util/constant"
+	"github.com/MCPutro/go-util/constant"
 	"io"
 	"net/http"
 	"net/url"
